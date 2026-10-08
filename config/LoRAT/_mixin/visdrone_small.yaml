@@ -1,0 +1,7 @@
+- path: "run.data.eval.source.parameters.datasets"
+  value:
+    - name: "VisDroneSmall"
+      type: "SOT"
+      path: "dataset/visdrone_small"
+- path: "run.profiling.enabled"
+  value: false
