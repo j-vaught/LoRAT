@@ -9,7 +9,11 @@ if curl -fsS http://127.0.0.1:8766/api/config >/dev/null 2>&1; then
   exit 0
 fi
 cd "$repo_dir"
-nohup "$repo_dir/.venv/bin/python" "$app_dir/server.py" --device "${LORAT_DEVICE:-cuda:1}" > "$runtime_dir/server.log" 2>&1 < /dev/null &
+source_args=()
+if [[ -f "$runtime_dir/source.json" ]]; then
+  source_args=(--source-config "$runtime_dir/source.json")
+fi
+nohup "$repo_dir/.venv/bin/python" "$app_dir/server.py" --device "${LORAT_DEVICE:-cuda:1}" "${source_args[@]}" > "$runtime_dir/server.log" 2>&1 < /dev/null &
 echo "$!" > "$runtime_dir/server.pid"
 for attempt in {1..30}; do
   if curl -fsS http://127.0.0.1:8766/api/config >/dev/null 2>&1; then

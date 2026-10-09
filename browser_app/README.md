@@ -2,15 +2,19 @@
 
 Authored by J.C. Vaught.
 
-The browser displays the original VisDrone sequence and initializes LoRAT g-378 from one bounding box on any selected frame. The server runs inference on comech-1176 and sends predictions to the browser as each frame finishes. Frame numbers in the interface begin at one. Frame indices in the API and exported JSON begin at zero. Boxes use original image pixels in the order x, y, width, height.
+The browser displays a selected video sequence and initializes LoRAT g-378 from one bounding box on any selected frame. The server runs inference on comech-1176 and sends predictions to the browser as each frame finishes. Frame numbers in the interface begin at one. Frame indices in the API and exported JSON begin at zero. Boxes use original image pixels in the order x, y, width, height.
 
 Choose a frame with the timeline, frame field, or arrow keys. Pause playback and drag a tight box around the target. Zoom enlarges the frame without changing annotation coordinates. Choose the last frame to process and press Track from selected frame. Use Play to inspect the predicted box or enable Follow the latest tracked frame to see each new result. Stop run preserves completed predictions. CSV and JSON downloads include the user-supplied initialization box and subsequent predictions. Previous runs remain available after restarting the server.
 
-The interface uses a clean, browser-compatible video for playback and individual original JPEG frames for annotation. The selected annotation frame is decoded from its exact frame file. The playback timeline uses the preview rate of 15 frames per second. That rate matches the prior preview and determines displayed time offsets.
+The interface uses a clean, browser-compatible video for playback and individual JPEG frames for annotation. The selected annotation frame is decoded from its exact frame file. Playback, time offsets, and exports use the configured frame rate. The VisDrone preview uses 15 frames per second. MSK-002 uses its source rate of 25 frames per second.
 
 The model stays loaded between runs. One run uses the GPU at a time. The default device is cuda:1, which is the second GTX 1080 Ti on this server. Set LORAT_DEVICE when starting the server to choose another device. Tracking scores are the raw model outputs.
 
-After tracking finishes, press Prepare tracking video. The server encodes an MP4 with the recorded boxes and scores. Download video appears when encoding finishes. Videos contain the processed interval and use the same 15-frame-per-second preview rate. The export adds one padding row when the original height is odd, preserving the original pixel coordinates. The imageio-ffmpeg package supplies the H.264 encoder independently of the server's system FFmpeg build. Install that package in the parent LoRAT environment before starting the server.
+After tracking finishes, press Prepare tracking video. The server encodes an MP4 with the recorded boxes and scores. Download video appears when encoding finishes. Videos contain the processed interval and use the configured frame rate. The export adds one padding row when the original height is odd, preserving the original pixel coordinates. The imageio-ffmpeg package supplies the H.264 encoder independently of the server's system FFmpeg build. Install that package in the parent LoRAT environment before starting the server.
+
+## Select a video source
+
+The start script reads work/browser/source.json when that file exists. Save the frames directory, playback video path, results directory, and frame rate under the keys frames, video, results, and fps. Paths may be absolute or relative to the checkout. The frames directory name identifies the sequence. Each video should have its own results directory so saved runs and exports remain associated with that source. Restart the server after changing these settings. Without saved settings, the server uses its VisDrone defaults. The server also accepts --source-config to read a settings file directly.
 
 ## Start the server
 

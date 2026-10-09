@@ -37,7 +37,7 @@ async function showFrame(index){
   pause();state.frame=Math.max(0,Math.min(state.config.count-1,Math.round(index)));state.frameReady=false;
   const epoch=++state.epoch;image.hidden=false;video.hidden=true;canvas.classList.remove('playing');
   $('frameState').textContent='Loading frame…';updateLabels();render();
-  const nextImage=new Image();nextImage.src=`/api/frames/${state.frame}.jpg`;
+  const nextImage=new Image();nextImage.src=`/api/frames/${state.frame}.jpg?v=${encodeURIComponent(state.config.asset_version||state.config.sequence)}`;
   try{await nextImage.decode();if(epoch!==state.epoch)return;image.src=nextImage.src;await image.decode();if(epoch!==state.epoch)return;state.frameReady=true;render();}
   catch{if(epoch===state.epoch)notify('Could not load this frame. Check the server connection.');}
 }

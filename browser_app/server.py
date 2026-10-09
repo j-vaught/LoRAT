@@ -58,6 +58,7 @@ class Application:
             raise RuntimeError(f"No JPEG frames found in {args.frames}")
         with Image.open(self.frames[0]) as image:
             self.width, self.height = image.size
+        self.asset_version = str(self.frames[0].stat().st_mtime_ns)
         self.lock = threading.RLock()
         self.jobs: dict[str, dict] = {}
         self.cancel: dict[str, threading.Event] = {}
@@ -89,7 +90,12 @@ class Application:
             "fps": self.args.fps,
             "model": "LoRAT g-378",
             "model_state": self.model_state,
-            "video": "/media/sequence.mp4" if self.args.video.is_file() else None,
+            "asset_version": self.asset_version,
+            "video": (
+                f"/media/sequence.mp4?v={self.asset_version}"
+                if self.args.video.is_file()
+                else None
+            ),
         }
 
     def _save(self, job):
@@ -485,7 +491,16 @@ def main():
     parser.add_argument("--device", default=os.environ.get("LORAT_DEVICE", "cuda:1"))
     parser.add_argument("--fps", type=float, default=15.0)
     parser.add_argument("--port", type=int, default=8766)
+    parser.add_argument(
+        "--source-config", type=Path, help="Saved video source settings."
+    )
     args = parser.parse_args()
+    if args.source_config is not None:
+        source = json.loads(args.source_config.read_text())
+        args.frames = Path(source["frames"]).expanduser()
+        args.video = Path(source["video"]).expanduser()
+        args.results = Path(source["results"]).expanduser()
+        args.fps = float(source["fps"])
     if not math.isfinite(args.fps) or args.fps <= 0:
         parser.error("--fps must be a positive number")
     Handler.app = Application(args)
