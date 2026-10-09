@@ -26,7 +26,7 @@ function render(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const row=state.rows.get(state.frame);
   if(row&&!row.seed)drawBox(row.box,'#60f4ad',`LoRAT ${row.score.toFixed(3)}`);
-  if(row?.seed)drawBox(row.box,'#ffca58','INITIAL TARGET');
+  if(row?.seed&&!(state.selection&&state.selectionFrame===state.frame))drawBox(row.box,'#ffca58','INITIAL TARGET');
   if(state.selection&&state.selectionFrame===state.frame)drawBox(state.selection,'#ffca58','YOUR TARGET');
   if(state.drag){const d=state.drag;drawBox([Math.min(d.start[0],d.end[0]),Math.min(d.start[1],d.end[1]),Math.abs(d.end[0]-d.start[0]),Math.abs(d.end[1]-d.start[1])],'#ffca58',null);}
   updateLabels();
