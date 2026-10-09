@@ -1,0 +1,16 @@
+[project]
+name = "lorat-browser"
+version = "0.1.0"
+description = "Select an exact frame and track one object with LoRAT."
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24,<2", "pillow>=9"]
+
+[dependency-groups]
+dev = ["ruff", "ty"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ty.rules]
+# The inference dependencies are supplied by the parent LoRAT environment.
+unresolved-import = "ignore"
