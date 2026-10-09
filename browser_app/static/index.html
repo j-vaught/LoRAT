@@ -55,6 +55,7 @@
         <label class="follow"><input id="follow" type="checkbox">Follow the latest tracked frame</label>
         <button id="stop" class="secondary" disabled>Stop run</button>
         <div class="downloads"><a id="csvDownload" aria-disabled="true">Download CSV ↓</a><a id="jsonDownload" aria-disabled="true">JSON ↓</a></div>
+        <div class="video-export"><button id="videoExport" class="secondary" disabled>Prepare tracking video</button><a id="videoDownload" hidden>Download video ↓</a><p id="videoMessage" class="small" role="status" aria-live="polite"></p></div>
         <p class="small">Score is the tracker output for the displayed frame.</p>
       </section>
       <section class="history-panel"><label for="history" class="eyebrow">PREVIOUS RUNS</label><select id="history"><option value="">Select a saved run</option></select></section>

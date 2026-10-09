@@ -10,6 +10,8 @@ The interface uses a clean, browser-compatible video for playback and individual
 
 The model stays loaded between runs. One run uses the GPU at a time. The default device is cuda:1, which is the second GTX 1080 Ti on this server. Set LORAT_DEVICE when starting the server to choose another device. Tracking scores are the raw model outputs.
 
+After tracking finishes, press Prepare tracking video. The server encodes an MP4 with the recorded boxes and scores. Download video appears when encoding finishes. Videos contain the processed interval and use the same 15-frame-per-second preview rate. The export adds one padding row when the original height is odd, preserving the original pixel coordinates. The imageio-ffmpeg package supplies the H.264 encoder independently of the server's system FFmpeg build. Install that package in the parent LoRAT environment before starting the server.
+
 ## Start the server
 
 Run these commands in the LoRAT checkout. The parent Python environment must already contain the upstream LoRAT dependencies, including PyTorch and the cached DINOv2 backbone. The giant-378.bin weights belong in pretrained_models. The default frame directory is dataset/visdrone_small/sequences/uav0000339_00001_v.

@@ -3,7 +3,8 @@ const $ = id => document.getElementById(id);
 const state = {config:null, frame:0, selection:null, selectionFrame:null, job:null, rows:new Map(), playing:false, drag:null, epoch:0, seen:0, polling:false, frameReady:false};
 const canvas = $('overlay'), ctx = canvas.getContext('2d'), image = $('frameImage'), video = $('video');
 const active = job => job && ['queued','loading','running','stopping'].includes(job.status);
-let noticeTimer, pollTimer, videoCallback;
+let noticeTimer, pollTimer, videoCallback, exportTimer;
+let exportId=null, exportBusy=false;
 
 function notify(message){ $('notice').textContent=message; $('notice').hidden=false; clearTimeout(noticeTimer); noticeTimer=setTimeout(()=>$('notice').hidden=true,8000); }
 async function api(path, options){ const response=await fetch(path,options); let data; try{data=await response.json();}catch{throw new Error('The server returned an unreadable response.');} if(!response.ok)throw new Error(data.error||`Request failed (${response.status}).`); return data; }
@@ -108,7 +109,25 @@ function jobUI(){
   $('modelState').textContent=job.status==='loading'?'Loading model on GPU 1':job.status==='failed'?'Run failed. See the message above.':'Model stays loaded between runs';
   const coverage=$('coverage');coverage.replaceChildren();if(job.completed_frames){const segment=document.createElement('span');segment.style.left=`${job.start_frame/state.config.count*100}%`;segment.style.width=`${job.completed_frames/state.config.count*100}%`;coverage.append(segment);}
   selectionUI();render();
+  if(exportId!==job.id){exportId=job.id;clearTimeout(exportTimer);exportBusy=false;$('videoExport').hidden=false;$('videoDownload').hidden=true;$('videoMessage').textContent='';updateVideoExport();}
+  $('videoExport').disabled=busy||!job.completed_frames||exportBusy;
 }
+async function updateVideoExport(){
+  if(!state.job)return;const id=state.job.id;
+  try{const result=await api(`/api/jobs/${id}/video`);if(state.job?.id!==id)return;
+    const ready=result.status==='ready';exportBusy=['queued','rendering'].includes(result.status);
+    $('videoExport').hidden=ready;$('videoDownload').hidden=!ready;$('videoDownload').href=result.url||`/api/jobs/${id}/mp4`;
+    $('videoExport').disabled=active(state.job)||!state.job.completed_frames||exportBusy;
+    $('videoExport').textContent=exportBusy?'Preparing video…':'Prepare tracking video';
+    $('videoMessage').textContent=ready?'MP4 with tracking boxes, ready to download.':exportBusy?`Preparing ${result.processed||0} / ${result.total} frames.`:result.status==='failed'?result.error:'Exports the processed frames with tracking boxes.';
+    if(exportBusy)exportTimer=setTimeout(updateVideoExport,800);
+  }catch(error){if(state.job?.id===id){exportBusy=false;$('videoExport').disabled=active(state.job)||!state.job.completed_frames;notify(error.message);}}
+}
+$('videoExport').onclick=async()=>{
+  if(!state.job||active(state.job))return;const id=state.job.id;$('videoExport').disabled=true;
+  try{await api(`/api/jobs/${id}/video`,request('POST',{}));if(state.job?.id===id)await updateVideoExport();}
+  catch(error){notify(error.message);$('videoExport').disabled=false;}
+};
 async function history(){
   const jobs=await api('/api/jobs');const selected=state.job?.id||'';const select=$('history');select.replaceChildren(new Option('Select a saved run',''));
   for(const job of jobs)select.add(new Option(`Frame ${job.start_frame+1} → ${job.end_frame+1} · ${job.status}`,job.id));select.value=selected;return jobs;

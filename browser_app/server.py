@@ -63,6 +63,8 @@ class Application:
         self.cancel: dict[str, threading.Event] = {}
         self.pending: queue.Queue[str] = queue.Queue()
         self.model_state = "Not loaded"
+        self.exports: dict[str, dict] = {}
+        self.export_queue: queue.Queue[str] = queue.Queue()
         args.results.mkdir(parents=True, exist_ok=True)
         for path in args.results.glob("*.json"):
             try:
@@ -76,6 +78,7 @@ class Application:
             except (ValueError, KeyError):
                 continue
         threading.Thread(target=self._worker, daemon=True).start()
+        threading.Thread(target=self._export_worker, daemon=True).start()
 
     def config(self):
         return {
@@ -236,6 +239,65 @@ class Application:
             )
         return stream.getvalue().encode()
 
+    def video_path(self, run_id):
+        self.snapshot(run_id, since=1000000)
+        return self.args.results.parent / "videos" / f"lorat-{run_id}.mp4"
+
+    def video_status(self, run_id):
+        with self.lock:
+            path = self.video_path(run_id)
+            if path.is_file():
+                return {"status": "ready", "url": f"/api/jobs/{run_id}/mp4"}
+            return dict(self.exports.get(run_id, {"status": "not_started"}))
+
+    def export_video(self, run_id):
+        with self.lock:
+            job = self.snapshot(run_id)
+            if job["status"] in ACTIVE or not job["rows"]:
+                raise ApiError(
+                    "Wait for tracking to finish before exporting a video.", 409
+                )
+            status = self.video_status(run_id)
+            if status["status"] in {"ready", "rendering", "queued"}:
+                return status
+            self.exports[run_id] = {
+                "status": "queued",
+                "processed": 0,
+                "total": len(job["rows"]),
+            }
+            self.export_queue.put(run_id)
+            return dict(self.exports[run_id])
+
+    def _export_worker(self):
+        while True:
+            run_id = self.export_queue.get()
+            try:
+                from exporter import render_video
+
+                job = self.snapshot(run_id)
+                with self.lock:
+                    self.exports[run_id]["status"] = "rendering"
+
+                def update(count, run_id=run_id):
+                    with self.lock:
+                        self.exports[run_id]["processed"] = count
+
+                render_video(
+                    self.frames,
+                    job["rows"],
+                    job["fps"],
+                    self.video_path(run_id),
+                    update,
+                )
+                with self.lock:
+                    self.exports[run_id]["status"] = "ready"
+            except Exception as error:  # noqa: BLE001 - preserve the export worker after encoder failures.
+                traceback.print_exc()
+                with self.lock:
+                    self.exports[run_id] = {"status": "failed", "error": str(error)}
+            finally:
+                self.export_queue.task_done()
+
 
 class Handler(BaseHTTPRequestHandler):
     app: Application
@@ -260,7 +322,7 @@ class Handler(BaseHTTPRequestHandler):
             json.dumps(data, allow_nan=False).encode(), "application/json", status
         )
 
-    def send_file(self, path: Path):
+    def send_file(self, path: Path, filename=None):
         if not path.is_file():
             raise ApiError("File not found.", 404)
         size = path.stat().st_size
@@ -287,6 +349,10 @@ class Handler(BaseHTTPRequestHandler):
         )
         self.send_header("Content-Length", str(end - start + 1))
         self.send_header("Accept-Ranges", "bytes")
+        if filename:
+            self.send_header(
+                "Content-Disposition", f'attachment; filename="{filename}"'
+            )
         self.send_header(
             "Cache-Control",
             "public, max-age=3600" if path.suffix in {".jpg", ".mp4"} else "no-cache",
@@ -329,9 +395,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(
                     [self.app.snapshot(job["id"], len(job["rows"])) for job in jobs]
                 )
-        match = re.fullmatch(r"/api/jobs/([a-f0-9]{16})(?:/(csv|json))?", path)
+        match = re.fullmatch(
+            r"/api/jobs/([a-f0-9]{16})(?:/(csv|json|video|mp4))?", path
+        )
         if match:
             run_id, kind = match.groups()
+            if kind == "video":
+                return self.send_json(self.app.video_status(run_id))
+            if kind == "mp4":
+                return self.send_file(
+                    self.app.video_path(run_id), filename=f"lorat-{run_id}.mp4"
+                )
             if kind == "csv":
                 return self.send_bytes(
                     self.app.export_csv(run_id),
@@ -375,6 +449,9 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError("Request must be a JSON object.")
             if self.path == "/api/jobs":
                 return self.send_json(self.app.submit(body), 202)
+            match = re.fullmatch(r"/api/jobs/([a-f0-9]{16})/video", self.path)
+            if match:
+                return self.send_json(self.app.export_video(match.group(1)), 202)
             match = re.fullmatch(r"/api/jobs/([a-f0-9]{16})/cancel", self.path)
             if match:
                 return self.send_json(self.app.stop(match.group(1)))
