@@ -32,6 +32,23 @@ ssh -N -L 127.0.0.1:8766:127.0.0.1:8766 comech-1176
 
 Open http://127.0.0.1:8766 in your browser. Keep the SSH tunnel running while using the application. The start script records the server process identifier and log under work/browser. Stop the server with its recorded process identifier when it is no longer needed.
 
+## Compare SAM 2.1 on a saved run
+
+The comparison script uses the saved initialization box and original JPEG frames. It propagates one mask without additional prompts, preserves empty masks as missing targets, and records mask-derived boxes in original pixels. The standard browser tracker continues using LoRAT. The comparison runs separately.
+
+Prepare the official SAM 2 repository and its lightweight dependencies in the work directory. The October 9 comparison used revision 2b90b9f5ceec907a1c18123530e92e794ad901a4. It used the existing PyTorch 2.2.2 CUDA environment, float32 inference on cuda:2, and the Hiera Large checkpoint. SAM's recommended environment uses PyTorch 2.5.1 or newer. The optional connected-component extension and hole filling are disabled for this comparison. Video frames and prediction memory stay on the CPU between inference steps.
+
+```sh
+git clone https://github.com/facebookresearch/sam2.git work/browser/sam2-vendor
+git -C work/browser/sam2-vendor checkout 2b90b9f5ceec907a1c18123530e92e794ad901a4
+uv pip install --python .venv/bin/python --target work/browser/sam2-deps hydra-core iopath 'tqdm>=4.66.1'
+curl -fL -o work/browser/sam2.1_hiera_large.pt https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
+.venv/bin/python browser_app/compare_sam2.py --sam-repo work/browser/sam2-vendor --sam-deps work/browser/sam2-deps --checkpoint work/browser/sam2.1_hiera_large.pt --frames work/browser/media/MSK-002 --baseline work/browser/MSK-002/runs/72b8e7c71e654499.json --output work/browser/MSK-002/sam2-first250 --count 250 --device cuda:2
+.venv/bin/python browser_app/render_comparison.py --frames work/browser/media/MSK-002 --baseline work/browser/MSK-002/runs/72b8e7c71e654499.json --sam-results work/browser/MSK-002/sam2-first250 --output work/browser/MSK-002/sam2-comparison.mp4 --crop
+```
+
+Use a new output directory for each inference run. The cropped comparison video contains synchronized LoRAT boxes in yellow and SAM masks and boxes in cyan. Its render JSON records the crop, output dimensions, and frame count. Review identity continuity against the source images. Raw tracker scores and segmentation masks do not establish identity accuracy.
+
 ## Prepare clean playback
 
 ```sh
