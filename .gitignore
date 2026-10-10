@@ -1,6 +1,11 @@
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
+.venv/
+pretrained_models/
+dataset/
+work/
+trackit/datasets/cache/
 *.py[cod]
 *$py.class
 

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LoRAT · Object tracking</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="identity"><span class="mark">L</span><div><h1>LoRAT</h1><p>SINGLE OBJECT TRACKING</p></div></div>
+    <div class="connection"><span id="connectionDot" class="dot"></span><span id="connection">Connecting to comech-1176</span></div>
+  </header>
+  <main>
+    <section class="workspace" aria-label="Video and annotation">
+      <div class="section-head"><div><p class="eyebrow">ORIGINAL VIDEO FRAMES</p><h2 id="sequence">Loading sequence</h2></div><span id="resolution" class="chip">—</span></div>
+      <div class="instruction"><span>01</span><p>Choose a frame. Drag a box around one object. Track forward.</p></div>
+      <div id="viewport" class="viewport">
+        <div id="stage" class="stage">
+          <img id="frameImage" alt="Selected original video frame" draggable="false">
+          <video id="video" muted playsinline preload="auto" hidden></video>
+          <canvas id="overlay" aria-label="Draw a bounding box around your target object"></canvas>
+        </div>
+      </div>
+      <div class="legend"><span><i class="swatch seed"></i>Your selection</span><span><i class="swatch prediction"></i>LoRAT prediction</span><span id="frameState">Loading original frame</span></div>
+      <div class="transport">
+        <button id="previous" title="Previous frame (left arrow)" aria-label="Previous frame">←</button>
+        <button id="play" class="play" title="Play or pause (space)">Play</button>
+        <button id="next" title="Next frame (right arrow)" aria-label="Next frame">→</button>
+        <label class="frame-input">Frame <input id="frameNumber" type="number" min="1" value="1" aria-label="Frame number"><span id="frameTotal">/ —</span></label>
+        <span id="timecode">0.00 s</span>
+        <label class="zoom">Zoom <select id="zoom"><option value="1">100%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option><option value="4">400%</option></select></label>
+      </div>
+      <div class="timeline-wrap"><div id="coverage" class="coverage"></div><input id="timeline" type="range" min="0" max="1" value="0" aria-label="Video timeline"></div>
+      <div class="timeline-labels"><span>START</span><span id="rangeLabel">275 frames</span><span>END</span></div>
+      <p class="hint">Use ← and → to step one frame. Press space to play. Zoom in to select small objects.</p>
+    </section>
+    <aside aria-label="Tracking controls">
+      <section class="control-panel">
+        <p class="eyebrow">02 / TARGET</p><h2>Track one object</h2>
+        <p class="subtle">Draw a tight box on a paused frame. Each run starts a fresh track from that selection.</p>
+        <div class="target-preview"><canvas id="targetCrop" width="256" height="160"></canvas><span id="targetPlaceholder">Draw a box to select a target</span></div>
+        <div class="target-meta"><span id="selectionFrame">No target selected</span><button id="clear" class="text-button">Clear box</button></div>
+        <div class="coordinates"><div><span>X</span><output id="coordX">—</output></div><div><span>Y</span><output id="coordY">—</output></div><div><span>WIDTH</span><output id="coordW">—</output></div><div><span>HEIGHT</span><output id="coordH">—</output></div></div>
+        <label class="end-control">Track through frame <input id="endFrame" type="number" min="1" value="275"></label>
+        <button id="track" class="primary" disabled>Track from selected frame <span>↗</span></button>
+        <p id="selectionHelp" class="small">Select a target to begin.</p>
+      </section>
+      <section class="control-panel run-panel">
+        <div class="run-title"><p class="eyebrow">03 / TRACKING RUN</p><span id="runStatus" class="status">IDLE</span></div>
+        <p id="runMessage" class="run-message" role="status" aria-live="polite">Ready when you are.</p>
+        <progress id="progress" value="0" max="1" aria-label="Tracking progress"></progress>
+        <div class="run-stats"><div><span>PROCESSED</span><output id="processed">—</output></div><div><span>SCORE</span><output id="score">—</output></div></div>
+        <label class="follow"><input id="follow" type="checkbox">Follow the latest tracked frame</label>
+        <button id="stop" class="secondary" disabled>Stop run</button>
+        <div class="downloads"><a id="csvDownload" aria-disabled="true">Download CSV ↓</a><a id="jsonDownload" aria-disabled="true">JSON ↓</a></div>
+        <div class="video-export"><button id="videoExport" class="secondary" disabled>Prepare tracking video</button><a id="videoDownload" hidden>Download video ↓</a><p id="videoMessage" class="small" role="status" aria-live="polite"></p></div>
+        <p class="small">Score is the tracker output for the displayed frame.</p>
+      </section>
+      <section class="history-panel"><label for="history" class="eyebrow">PREVIOUS RUNS</label><select id="history"><option value="">Select a saved run</option></select></section>
+    </aside>
+  </main>
+  <footer><span>LoRAT g-378 · GPU inference on comech-1176</span><span id="modelState">Model loads on the first run</span></footer>
+  <div id="notice" class="notice" role="alert" hidden></div>
+</body>
+</html>
