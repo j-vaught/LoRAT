@@ -49,6 +49,27 @@ curl -fL -o work/browser/sam2.1_hiera_large.pt https://dl.fbaipublicfiles.com/se
 
 Use a new output directory for each inference run. The cropped comparison video contains synchronized LoRAT boxes in yellow and SAM masks and boxes in cyan. Its render JSON records the crop, output dimensions, and frame count. Review identity continuity against the source images. Raw tracker scores and segmentation masks do not establish identity accuracy.
 
+## Compare explicit fish motion and joint association
+
+The fixed-camera fish experiment uses local dark-contrast components as candidate observations. The saved scene configuration defines the tank region and excludes the static column and foreground pipe. This detector is calibrated to MSK-002 at 1920 by 1080 pixels. The configuration is an external observation constraint, so apparent improvements over the learned trackers cannot be attributed to the motion filter alone.
+
+Each candidate track has a Kalman state with image position and velocity, white acceleration process noise, and noisy center measurements. Association combines a 99-percent two-dimensional Mahalanobis gate, component area, and mean hue, saturation, and value (HSV) appearance. Hungarian assignment operates jointly within recency groups. Recently observed tracks receive candidates before lost tracks. Lost tracks require a tighter area match and expire after 50 missing frames. Empty observations remain predictions and are never written as measured boxes. Track identifiers are never reused.
+
+The same detections also feed a position-only association control. This control uses the most recent measured center and the same assignment cascade, appearance cues, and expiry rule. Its measurements are preserved separately in the recorded JSON. The first prototype is retained outside the source checkout as experiment data. Its broad lost-track uncertainty admitted incorrect measurements, which motivated the recency cascade and stricter recovery policy.
+
+```sh
+cd browser_app
+uv sync --extra motion
+uv run python fish_motion.py --frames ../work/browser/media/MSK-002 --baseline ../work/browser/MSK-002/runs/72b8e7c71e654499.json --detector-config msk_detector.json --output ../work/browser/MSK-002/motion-first250 --count 250
+uv run python render_motion.py --frames ../work/browser/media/MSK-002 --motion-results ../work/browser/MSK-002/motion-first250/predictions.json --baseline ../work/browser/MSK-002/runs/72b8e7c71e654499.json --sam-results ../work/browser/MSK-002/sam2-first250/predictions.json --output ../work/browser/MSK-002/motion-comparison.mp4 --crop-box 333 75 1062 625
+uv run ruff format .
+uv run ruff check . --fix
+uv run ty check .
+uv run python -m unittest -v
+```
+
+Use a new output directory for each run. The renderer accepts --all-tracks for a full-frame view of all currently observed candidate tracks, or --position-control to compare the Kalman estimate with position-only association. Green boxes show target observations. Orange dashed boxes show extrapolated Kalman positions. Lost means the original track has expired. The method is evaluated visually on this development clip and has no ground-truth identity score. It remains an offline comparison tool.
+
 ## Prepare clean playback
 
 ```sh
